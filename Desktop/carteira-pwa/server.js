@@ -336,7 +336,6 @@ initDB().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}/carteira-pwa.html`);
   });
-});
 const pool = new Pool(
   process.env.DATABASE_URL
     ? {
