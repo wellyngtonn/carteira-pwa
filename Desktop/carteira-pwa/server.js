@@ -34,72 +34,59 @@ async function initDB() {
       criado_em TIMESTAMP DEFAULT NOW()
     )
   `);
-  console.log('✅ Banco de dados inicializado');
+  console.log('Banco de dados inicializado');
 }
 
 app.get('/api/transacoes', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM transacoes ORDER BY data DESC, criado_em DESC');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
+    const r = await pool.query('SELECT * FROM transacoes ORDER BY data DESC');
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.post('/api/transacoes', async (req, res) => {
   const { descricao, valor, tipo, categoria, data } = req.body;
-  if (!descricao || !valor || !tipo) {
-    return res.status(400).json({ erro: 'descricao, valor e tipo sao obrigatorios' });
-  }
+  if (!descricao || !valor || !tipo) return res.status(400).json({ erro: 'Campos obrigatorios' });
   try {
-    const result = await pool.query(
+    const r = await pool.query(
       'INSERT INTO transacoes (descricao,valor,tipo,categoria,data) VALUES ($1,$2,$3,$4,$5) RETURNING *',
       [descricao, valor, tipo, categoria || null, data || new Date().toISOString().split('T')[0]]
     );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
+    res.status(201).json(r.rows[0]);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.put('/api/transacoes/:id', async (req, res) => {
-  const { id } = req.params;
   const { descricao, valor, tipo, categoria, data } = req.body;
   try {
-    const result = await pool.query(
+    const r = await pool.query(
       'UPDATE transacoes SET descricao=$1,valor=$2,tipo=$3,categoria=$4,data=$5 WHERE id=$6 RETURNING *',
-      [descricao, valor, tipo, categoria || null, data, id]
+      [descricao, valor, tipo, categoria || null, data, req.params.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ erro: 'Nao encontrado' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
+    if (!r.rows.length) return res.status(404).json({ erro: 'Nao encontrado' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.delete('/api/transacoes/:id', async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM transacoes WHERE id=$1 RETURNING *', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ erro: 'Nao encontrado' });
-    res.json({ mensagem: 'Removido com sucesso' });
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
+    const r = await pool.query('DELETE FROM transacoes WHERE id=$1 RETURNING *', [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ erro: 'Nao encontrado' });
+    res.json({ mensagem: 'Removido' });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('/api/resumo', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const r = await pool.query(`
       SELECT
         COALESCE(SUM(CASE WHEN tipo='receita' THEN valor ELSE 0 END),0) AS total_receitas,
         COALESCE(SUM(CASE WHEN tipo='despesa' THEN valor ELSE 0 END),0) AS total_despesas,
         COALESCE(SUM(CASE WHEN tipo='receita' THEN valor ELSE -valor END),0) AS saldo
       FROM transacoes
     `);
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ erro: err.message });
-  }
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
 app.get('*', (req, res) => {
@@ -109,10 +96,10 @@ app.get('*', (req, res) => {
 initDB()
   .then(() => {
     app.listen(PORT, () => {
-      console.log('🚀 Servidor rodando na porta ' + PORT);
+      console.log('Servidor na porta ' + PORT);
     });
   })
   .catch(err => {
-    console.error('❌ Erro ao conectar no PostgreSQL:', err.message);
+    console.error('Erro ao conectar no PostgreSQL:', err.message);
     process.exit(1);
   });
